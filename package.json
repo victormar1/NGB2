@@ -1,0 +1,20 @@
+{
+  "name": "nanoglobin",
+  "version": "1.0.0",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^26.6.10",
+    "fs": "^0.0.1-security",
+    "jszip": "^3.10.1",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "babel-loader": "^9.2.1",
+    "webpack-cli": "^5.1.4"
+  }
+}
