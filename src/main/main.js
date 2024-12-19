@@ -1,8 +1,19 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { parseNGBFile, extractBAMFromBuffer } = require('./fileHandlers');
+const { parseNGBFile, extractBAMAndBAIFromBuffer } = require('./fileHandlers');
+const express = require('express');
+const fs = require('fs');
+const os = require('os');
 
 let mainWindow;
+
+// Création d'un serveur local pour servir les fichiers BAM
+const appServer = express();
+const tempDir = path.join(os.tmpdir(), 'nanoglobin');
+appServer.use('/files', express.static(tempDir));
+appServer.listen(8080, () => {
+    console.log('Serveur de fichiers démarré sur http://localhost:8080/files');
+});
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -29,21 +40,18 @@ app.on('activate', () => {
 // Gestionnaire IPC pour charger un fichier NGB
 ipcMain.handle('load-ngb-file', async (event, filePath, fileBuffer) => {
     try {
-        console.log('load-ngb-file appelé avec :', { filePath, fileBufferExists: !!fileBuffer });
         const barcodes = await parseNGBFile(filePath, fileBuffer);
         return { barcodes };
     } catch (error) {
-        console.error('Erreur lors du chargement du fichier NGB :', error);
         throw error;
     }
 });
 
-// Gestionnaire IPC pour extraire un fichier BAM
-ipcMain.handle('extract-bam', async (event, fileBuffer, barcode) => {
-    try {
-        return await extractBAMFromBuffer(fileBuffer, barcode);
-    } catch (error) {
-        console.error('Erreur lors de l\'extraction du fichier BAM :', error);
-        throw error;
+ipcMain.handle('get-bam-url', async (event, barcode, fileBuffer) => {
+    if (!fileBuffer || fileBuffer.length === 0) {
+        throw new Error('Le fichier NGB fourni est vide ou invalide.');
     }
+
+    const result = await extractBAMAndBAIFromBuffer(fileBuffer, barcode);
+    return result;
 });

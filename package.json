@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "electron": "^26.6.10",
+    "express": "^4.21.2",
     "fs": "^0.0.1-security",
     "jszip": "^3.10.1",
     "path": "^0.12.7"

@@ -3,6 +3,8 @@ const JSZip = require('jszip');
 const path = require('path');
 const os = require('os');
 
+const tempDir = path.join(os.tmpdir(), 'nanoglobin');
+
 // Fonction pour analyser un fichier NGB
 async function parseNGBFile(filePath, fileBuffer) {
     const buffer = fileBuffer || fs.readFileSync(filePath);
@@ -57,30 +59,37 @@ async function parseNGBFile(filePath, fileBuffer) {
     return barcodes;
 }
 
-// Fonction pour extraire un BAM depuis le buffer
-async function extractBAMFromBuffer(fileBuffer, barcode) {
+// Fonction pour extraire BAM et BAI
+async function extractBAMAndBAIFromBuffer(fileBuffer, barcode) {
     const zip = await JSZip.loadAsync(fileBuffer);
-
     const bamPath = Object.keys(zip.files).find(
         (filePath) => filePath.startsWith(`${barcode}/`) && filePath.endsWith('.bam')
     );
+    const baiPath = Object.keys(zip.files).find(
+        (filePath) => filePath.startsWith(`${barcode}/`) && filePath.endsWith('.bai')
+    );
 
-    if (!bamPath) {
-        throw new Error(`Aucun fichier BAM trouvé pour le barcode ${barcode}`);
+    if (!bamPath || !baiPath) {
+        throw new Error(`Fichiers BAM ou BAI introuvables pour ${barcode}`);
     }
 
     const bamContent = await zip.files[bamPath].async('nodebuffer');
-    const tempDir = path.join(os.tmpdir(), 'nanoglobin');
+    const baiContent = await zip.files[baiPath].async('nodebuffer');
+
     const tempBAMPath = path.join(tempDir, `${barcode}.bam`);
+    const tempBAIPath = path.join(tempDir, `${barcode}.bai`);
 
     if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
     }
 
     fs.writeFileSync(tempBAMPath, bamContent);
-    console.log(`Fichier BAM extrait : ${tempBAMPath}`);
-    return tempBAMPath;
+    fs.writeFileSync(tempBAIPath, baiContent);
+
+    return {
+        bamUrl: `http://localhost:8080/files/${barcode}.bam`,
+        baiUrl: `http://localhost:8080/files/${barcode}.bai`
+    };
 }
 
-module.exports = { parseNGBFile, extractBAMFromBuffer };
-
+module.exports = { parseNGBFile, extractBAMAndBAIFromBuffer };
