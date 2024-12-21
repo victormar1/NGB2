@@ -1,4 +1,3 @@
-
 <template>
   <div id="app">
     <GelVirtuel :samples="samples" />

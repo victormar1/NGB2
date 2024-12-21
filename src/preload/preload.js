@@ -1,10 +1,10 @@
-const { contextBridge, ipcRenderer } = require('electron');
+import { contextBridge, ipcRenderer } from "electron";
 
-contextBridge.exposeInMainWorld('api', {
-    loadNGBFile: async (filePath, fileBuffer) => {
-        return await ipcRenderer.invoke('load-ngb-file', filePath, fileBuffer);
-    },
-    getBAMUrl: async (barcode, fileBuffer) => {
-        return await ipcRenderer.invoke('get-bam-url', barcode, fileBuffer);
-    }
+contextBridge.exposeInMainWorld("api", {
+  loadNGBFile: async (filePath, fileBuffer) => {
+    return await ipcRenderer.invoke("load-ngb-file", filePath, fileBuffer);
+  },
+  getBAMUrl: async (barcode, fileBuffer) => {
+    return await ipcRenderer.invoke("get-bam-url", barcode, fileBuffer);
+  },
 });
