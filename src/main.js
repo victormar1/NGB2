@@ -6,7 +6,7 @@ import fs from "fs";
 import os from "os";
 import { parseNGBFile, extractBAMAndBAIFromBuffer } from "./fileHandlers.js";
 
-// Handle __dirname equivalent in ESM
+// Pour avoir __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -33,7 +33,9 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, "../preload/preload.js"),
+      // Si ton preload est dans src/preload/preload.js,
+      // ajuste le chemin ci-dessous :
+      preload: path.join(__dirname, "preload/preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -41,7 +43,8 @@ function createWindow() {
 
   if (isDev) {
     // En DEV : charger l’URL du serveur Vite
-    mainWindow.loadURL("http://localhost:3000");
+    // Par défaut, Vite écoute sur http://localhost:5173
+    mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools(); // Facultatif
   } else {
     // En PROD : charger le bundle Vite (index.html dans dist)
