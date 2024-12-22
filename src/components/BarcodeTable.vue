@@ -59,10 +59,38 @@ export default {
     }
   },
   methods: {
-    async loadBamInIGV(barcode) {
-      alert(`TODO: load ${barcode} in IGV...`);
+  async loadBamInIGV(barcode) {
+    const igvURL = "http://localhost:60151"; // Serveur IGV
+    const basePath = "http://localhost:8080/files"; // Serveur Express
+    const genome = "hg38"; // Génome de référence
+    const locus = "chr16:167000-190000"; // Région initiale à afficher
+
+    // URLs des fichiers BAM et BAI
+    const bamUrl = `${basePath}/${barcode}/${barcode}.bam`;
+    const baiUrl = `${basePath}/${barcode}/${barcode}.bam.bai`;
+
+    try {
+      // Loguer la requête pour vérifier les paramètres
+      console.log(`Requête IGV : ${igvURL}/load?file=${encodeURIComponent(bamUrl)}&index=${encodeURIComponent(baiUrl)}&genome=${genome}&locus=${locus}`);
+
+      // Envoyer la requête à IGV
+      const response = await fetch(
+        `${igvURL}/load?file=${encodeURIComponent(bamUrl)}&index=${encodeURIComponent(baiUrl)}&genome=${genome}&locus=${locus}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP IGV: ${response.status}`);
+      }
+
+      alert(`Fichier ${bamUrl} chargé dans IGV.`);
+    } catch (error) {
+      console.error("Erreur lors de la communication avec IGV :", error);
+      alert(`Échec du chargement dans IGV pour ${barcode}.`);
     }
-  }
+  },
+}
+
+
 };
 </script>
 
