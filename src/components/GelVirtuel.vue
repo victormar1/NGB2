@@ -1,6 +1,16 @@
 <template>
   <div class="flex flex-col items-center">
-    <!-- Le canvas s’adapte en largeur max, mais fixe la résolution interne -->
+    <!-- Sélecteur de profil témoin -->
+    <div class="mb-4">
+      <label class="text-gray-700 mr-2">Profil témoin :</label>
+      <select v-model="selectedProfile" @change="drawGel" class="border rounded p-1">
+        <option value="normal">Normal</option>
+        <option value="-3.7">-3.7</option>
+        <option value="other">Autre anomalie (placeholder)</option>
+      </select>
+    </div>
+
+    <!-- Canvas -->
     <canvas
       ref="canvas"
       :width="canvasWidth"
@@ -13,84 +23,65 @@
 <script>
 export default {
   name: "GelVirtuel",
-
   props: {
-    /**
-     *  `samples` est un tableau de chaînes.
-     *  Exemple : [ "size\n600\n800\n1200", "size\n700\n900\n..." ]
-     */
     samples: {
       type: Array,
       default: () => [],
     },
+    highlightedSample: {
+      type: Number,
+      default: null,
+    },
   },
-
   data() {
     return {
-      // Dimensions internes du canvas
       canvasWidth: 1600,
       canvasHeight: 800,
-
-      // Paramètres de "displayGelVirtuel"
-      ladderSpacing: 100,
+      ladderSpacing: 150, // Augmenté pour l'échelle et les pistes témoins
       sampleSpacing: 30,
       minSize: 500,
       maxSize: 15000,
-      binSize: 250,
+      binSize: 250, // Taille des bins (inchangée)
+      scaleStep: 1000, // Graduation de l'échelle en bp
+      selectedProfile: "normal", // Profil témoin sélectionné
     };
   },
-
-  mounted() {
-    this.drawGel(); // Dessin initial
-  },
-
   watch: {
-    // Quand la prop samples change, on redessine
     samples() {
       this.drawGel();
     },
+    highlightedSample() {
+      this.drawGel();
+    },
   },
-
+  mounted() {
+    this.drawGel();
+  },
   methods: {
     drawGel() {
-      // Récupérer le contexte 2D
       const canvas = this.$refs.canvas;
-      if (!canvas) return; // sécurité
+      if (!canvas) return;
       const ctx = canvas.getContext("2d");
 
-      // Quelques alias pour plus de lisibilité
       const { canvasWidth, canvasHeight } = this;
-      const { ladderSpacing, sampleSpacing, minSize, maxSize, binSize } = this;
+      const { ladderSpacing, sampleSpacing, minSize, maxSize, binSize, scaleStep } =
+        this;
 
-      // Nettoyage du canvas
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-      // Fond noir
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-      // Calcul du nombre total de bins
       const totalBins = (maxSize - minSize) / binSize;
+      const totalScaleSteps = Math.floor((maxSize - minSize) / scaleStep);
 
-      // ÉCHELLE (ladder) sur la gauche, en jaune
-      ctx.fillStyle = "#FFD700";
-      for (let i = 0; i <= totalBins; i++) {
-        const yPosition = canvasHeight - (i / totalBins) * canvasHeight;
-        // Petite barre horizontale
-        ctx.fillRect(ladderSpacing / 2 - 10, yPosition - 1, 20, 2);
+      // Dessiner l'échelle indépendante
+      this.drawLadder(ctx, canvasHeight, totalScaleSteps, scaleStep);
 
-        // Label du nombre de bp (en blanc)
-        ctx.font = "14px Arial";
-        ctx.fillStyle = "#fff";
-        ctx.fillText(`${minSize + i * binSize} bp`, 5, yPosition + 4);
+      // Dessiner les pistes témoins
+      this.drawControlTracks(ctx, canvasHeight);
 
-        // On repasse en doré pour la prochaine barre
-        ctx.fillStyle = "#FFD700";
-      }
-
-      // Dessiner une colonne pour chaque échantillon de `samples`
+      // Dessiner les échantillons
       this.samples.forEach((sampleData, sampleIndex) => {
-        // Ex: on saute la 1ère ligne (souvent "size") et on parse en nombres
         const parsedData = sampleData
           .split("\n")
           .slice(1)
@@ -99,66 +90,101 @@ export default {
 
         if (parsedData.length === 0) return;
 
-        // Création d'un tableau de bins (compteurs) initialisés à 0
-        const bins = Array.from({ length: totalBins + 1 }, () => 0);
-
-        // Répartition des valeurs dans les bins
-        parsedData.forEach((size) => {
-          if (size >= minSize && size <= maxSize) {
-            const binIndex = Math.floor((size - minSize) / binSize);
-            bins[binIndex] += 1;
-          }
-        });
-
-        // Calcul de la largeur de chaque colonne
         const sampleWidth =
           (canvasWidth -
             ladderSpacing -
             sampleSpacing * (this.samples.length + 1)) /
           this.samples.length;
-
-        // Position X pour cet échantillon
         const xOffset =
           ladderSpacing +
           sampleSpacing +
           sampleIndex * (sampleWidth + sampleSpacing);
 
-        // Trouver le nombre maximum de reads dans un bin (pour l'intensité)
-        const maxReads = Math.max(...bins);
+        const maxReads = Math.max(...parsedData);
 
-        // Dessiner chaque bin sous forme de bande horizontale
-        bins.forEach((count, binIndex) => {
-          if (count === 0) return;
+        parsedData.forEach((size) => {
+          if (size < minSize || size > maxSize) return;
 
-          const intensity = Math.min(0.1 + (count / maxReads) * 0.9, 1);
-          const yPosition = canvasHeight - (binIndex / totalBins) * canvasHeight;
+          // Position relative (précise) entre minSize et maxSize
+          const yPosition =
+            canvasHeight -
+            ((size - minSize) / (maxSize - minSize)) * canvasHeight;
 
-          // Dégradé orange->red
+          const intensity = Math.min(0.1 + (size / maxReads) * 0.9, 1);
+
           const gradient = ctx.createLinearGradient(
             xOffset,
             yPosition,
             xOffset + sampleWidth,
             yPosition
           );
-          gradient.addColorStop(0, `rgba(255, 165, 0, ${intensity})`); // orange
-          gradient.addColorStop(1, `rgba(255, 69, 0, ${intensity})`);  // orangered
+          gradient.addColorStop(0, `rgba(255, 165, 0, ${intensity})`);
+          gradient.addColorStop(1, `rgba(255, 69, 0, ${intensity})`);
           ctx.fillStyle = gradient;
 
-          // Bande horizontale
           ctx.fillRect(xOffset, yPosition - 1, sampleWidth, 2);
         });
 
-        // Ajouter la légende (“Sample 1”, etc.) en bas
+        // Highlight de l'échantillon sélectionné
+        if (sampleIndex === this.highlightedSample) {
+          ctx.strokeStyle = "cyan";
+          ctx.lineWidth = 4;
+          ctx.strokeRect(xOffset - 2, 0, sampleWidth + 4, canvasHeight);
+        }
+
         ctx.font = "14px Arial";
         ctx.fillStyle = "#FFD700";
         ctx.fillText(`Sample ${sampleIndex + 1}`, xOffset, canvasHeight - 10);
       });
     },
+    drawLadder(ctx, canvasHeight, totalScaleSteps, scaleStep) {
+      ctx.fillStyle = "#FFD700";
+      ctx.font = "16px Arial"; // Texte plus lisible
+      ctx.textAlign = "right";
+
+      for (let i = 0; i <= totalScaleSteps; i++) {
+        const size = this.minSize + i * scaleStep;
+        const yPosition =
+          canvasHeight - ((size - this.minSize) / (this.maxSize - this.minSize)) * canvasHeight;
+
+        // Barre de l'échelle
+        ctx.fillRect(this.ladderSpacing / 2 - 10, yPosition - 1, 20, 2);
+
+        // Texte
+        ctx.fillStyle = "#fff";
+        ctx.fillText(`${size} bp`, this.ladderSpacing - 10, yPosition + 4);
+        ctx.fillStyle = "#FFD700";
+      }
+    },
+    drawControlTracks(ctx, canvasHeight) {
+      const controlTracks = {
+        normal: [700, 900, 1200],
+        "-3.7": [600, 800, 1000],
+        other: [500, 700, 1100], // Placeholder
+      };
+
+      const profile = controlTracks[this.selectedProfile];
+      if (!profile) return;
+
+      const controlWidth = 50; // Largeur fixe des pistes témoins
+      const xOffset = this.ladderSpacing - controlWidth - 10;
+
+      ctx.fillStyle = "#FFD700";
+      profile.forEach((size) => {
+        const yPosition =
+          canvasHeight -
+          ((size - this.minSize) / (this.maxSize - this.minSize)) * canvasHeight;
+
+        // Bande témoin
+        ctx.fillRect(xOffset, yPosition - 1, controlWidth, 2);
+      });
+
+      // Légende des témoins
+      ctx.font = "14px Arial";
+      ctx.fillStyle = "#FFD700";
+      ctx.textAlign = "center";
+      ctx.fillText(this.selectedProfile, xOffset + controlWidth / 2, canvasHeight - 10);
+    },
   },
 };
 </script>
-
-<style scoped>
-/* Styles complémentaires si besoin. 
-   On a déjà .max-w-full, .border, .shadow-md dans le <canvas> via classes Tailwind. */
-</style>

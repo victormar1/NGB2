@@ -12,13 +12,25 @@
     </thead>
     <tbody>
       <tr
-        v-for="(data, barcode) in barcodes"
+        v-for="(data, barcode, index) in barcodes"
         :key="barcode"
         class="hover:bg-gray-50"
       >
-        <td class="border px-3 py-1">{{ barcode }}</td>
-        <td class="border px-3 py-1">{{ data.haploContent || 'Aucune donnée' }}</td>
-        <td class="border px-3 py-1">
+        <!-- Colonnes cliquables -->
+        <td
+          class="border px-3 py-1 cursor-pointer"
+          @click="$emit('select-barcode', index)"
+        >
+          {{ barcode }}
+        </td>
+        <td
+          class="border px-3 py-1 cursor-pointer"
+          @click="$emit('select-barcode', index)"
+        >
+          {{ data.haploContent || 'Aucune donnée' }}
+        </td>
+        <!-- Actions -->
+        <td class="border px-3 py-1 flex items-center space-x-2">
           <button
             v-if="data.bam"
             @click="loadBamInIGV(barcode)"
@@ -34,8 +46,6 @@
 </template>
 
 <script>
-import JSZip from 'jszip'
-
 export default {
   name: "BarcodeTable",
   props: {
@@ -50,16 +60,22 @@ export default {
   },
   methods: {
     async loadBamInIGV(barcode) {
-      // Ex: si tu appelles un IPC ou un "getBAMUrl"
-      alert(`TODO: load ${barcode} in IGV...`)
+      alert(`TODO: load ${barcode} in IGV...`);
     }
   }
-}
+};
 </script>
 
 <style scoped>
-/* On réutilise les mêmes classes "btn-primary" si tu veux : */
 .btn-primary {
   @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 hover:bg-gray-700 text-white font-semibold py-1 px-3 rounded;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>
