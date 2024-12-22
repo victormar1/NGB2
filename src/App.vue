@@ -1,36 +1,19 @@
 <template>
-  <div id="app">
-    <GelVirtuel :samples="samples" />
-    <BarcodeTable :barcodes="barcodes" />
-    <Metadata :metadata="metadata" />
-  </div>
+  <!-- On délègue toute la page à un composant "Home" -->
+  <Home />
 </template>
 
 <script>
-import GelVirtuel from './components/GelVirtuel.vue';
-import BarcodeTable from './components/BarcodeTable.vue';
-import Metadata from './components/Metadata.vue';
+import Home from './components/Home.vue'
 
 export default {
-  components: { GelVirtuel, BarcodeTable, Metadata },
-  data() {
-    return {
-      samples: [
-        { size: 500 }, { size: 1000 }, { size: 1500 }, { size: 2000 }
-      ],
-      barcodes: {
-        "barcode1": { genotype: "AA" },
-        "barcode2": { genotype: "BB" }
-      },
-      metadata: {
-        size: 12345,
-        barcodes: ["barcode1", "barcode2"]
-      },
-    };
-  },
-};
+  name: 'App',
+  components: {
+    Home
+  }
+}
 </script>
 
 <style>
-/* Add styles if necessary */
+/* Styles globaux ou rien, selon ton organisation */
 </style>
