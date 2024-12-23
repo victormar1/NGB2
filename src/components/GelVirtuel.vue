@@ -4,9 +4,17 @@
     <div class="mb-4">
       <label class="text-gray-700 mr-2">Profil témoin :</label>
       <select v-model="selectedProfile" @change="drawGel" class="border rounded p-1">
-        <option value="normal">Normal</option>
-        <option value="-3.7">-3.7</option>
-        <option value="other">Autre anomalie (placeholder)</option>
+        <option value="normal">αα/αα, β/β (Normal)</option>
+        <option value="--SEA">--SEA/αα, β/β</option>
+        <option value="-α3.7">-α3.7/αα, β/β</option>
+        <option value="-α4.2">-α4.2/αα, β/β</option>
+        <option value="--THAI">--THAI/αα, β/β</option>
+        <option value="--FIL">--FIL/αα, β/β</option>
+        <option value="-α27.6">-α27.6/αα, β/β</option>
+        <option value="ααanti3.7">ααanti3.7/αα, β/β</option>
+        <option value="ααanti4.2">ααanti4.2/αα, β/β</option>
+        <option value="βSEA-HPFH">αα/αα, βSEA-HPFH/β</option>
+        <option value="βGγ+(Aγδβ)0">αα/αα, βGγ+(Aγδβ)0/β</option>
       </select>
     </div>
 
@@ -37,12 +45,10 @@ export default {
     return {
       canvasWidth: 1600,
       canvasHeight: 800,
-      ladderSpacing: 150, // Augmenté pour l'échelle et les pistes témoins
+      ladderSpacing: 150,
       sampleSpacing: 30,
       minSize: 500,
       maxSize: 15000,
-      binSize: 250, // Taille des bins (inchangée)
-      scaleStep: 1000, // Graduation de l'échelle en bp
       selectedProfile: "normal", // Profil témoin sélectionné
     };
   },
@@ -63,127 +69,123 @@ export default {
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
 
-      const { canvasWidth, canvasHeight } = this;
-      const { ladderSpacing, sampleSpacing, minSize, maxSize, binSize, scaleStep } =
-        this;
+      const { canvasWidth, canvasHeight, ladderSpacing, sampleSpacing } = this;
 
+      // Nettoyer le canvas
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-      const totalBins = (maxSize - minSize) / binSize;
-      const totalScaleSteps = Math.floor((maxSize - minSize) / scaleStep);
+      // Dessiner l'échelle
+      this.drawLadder(ctx, canvasHeight);
 
-      // Dessiner l'échelle indépendante
-      this.drawLadder(ctx, canvasHeight, totalScaleSteps, scaleStep);
-
-      // Dessiner les pistes témoins
+      // Dessiner la piste témoin
       this.drawControlTracks(ctx, canvasHeight);
 
-      // Dessiner les échantillons
-      this.samples.forEach((sampleData, sampleIndex) => {
-        const parsedData = sampleData
-          .split("\n")
-          .slice(1)
-          .map(Number)
-          .filter((n) => !isNaN(n));
+// Dessiner les échantillons
+this.samples.forEach((sample, sampleIndex) => {
+  // Accéder aux données de l'échantillon
+  const parsedData = sample.data
+    .split("\n")
+    .slice(1)
+    .map(Number)
+    .filter((n) => !isNaN(n));
 
-        if (parsedData.length === 0) return;
+  if (parsedData.length === 0) return;
 
-        const sampleWidth =
-          (canvasWidth -
-            ladderSpacing -
-            sampleSpacing * (this.samples.length + 1)) /
-          this.samples.length;
-        const xOffset =
-          ladderSpacing +
-          sampleSpacing +
-          sampleIndex * (sampleWidth + sampleSpacing);
+  const sampleWidth =
+    (canvasWidth - ladderSpacing - sampleSpacing * (this.samples.length + 2)) /
+    (this.samples.length + 1);
 
-        const maxReads = Math.max(...parsedData);
+  const xOffset =
+    ladderSpacing +
+    sampleSpacing * 2 + // Laisser la place pour le témoin
+    (sampleWidth + sampleSpacing) * (sampleIndex + 1); // Décalage du premier échantillon
 
-        parsedData.forEach((size) => {
-          if (size < minSize || size > maxSize) return;
+  // Dessiner les bandes
+  parsedData.forEach((size) => {
+    if (size < this.minSize || size > this.maxSize) return;
 
-          // Position relative (précise) entre minSize et maxSize
-          const yPosition =
-            canvasHeight -
-            ((size - minSize) / (maxSize - minSize)) * canvasHeight;
+    const yPosition =
+      canvasHeight -
+      ((size - this.minSize) / (this.maxSize - this.minSize)) * canvasHeight;
 
-          const intensity = Math.min(0.1 + (size / maxReads) * 0.9, 1);
+    ctx.fillStyle = "rgba(255, 69, 0, 0.8)";
+    ctx.fillRect(xOffset, yPosition - 1, sampleWidth, 2);
+  });
 
-          const gradient = ctx.createLinearGradient(
-            xOffset,
-            yPosition,
-            xOffset + sampleWidth,
-            yPosition
-          );
-          gradient.addColorStop(0, `rgba(255, 165, 0, ${intensity})`);
-          gradient.addColorStop(1, `rgba(255, 69, 0, ${intensity})`);
-          ctx.fillStyle = gradient;
+  // Afficher le nom sous la piste
+  ctx.font = "20px Arial"; // Police plus grande
+  ctx.fillStyle = "#FFD700";
+  ctx.textAlign = "center";
+  ctx.fillText(sample.name, xOffset + sampleWidth / 2, canvasHeight - 10);
 
-          ctx.fillRect(xOffset, yPosition - 1, sampleWidth, 2);
-        });
+  // Surlignage si l'échantillon est sélectionné
+  if (sampleIndex === this.highlightedSample) {
+    ctx.strokeStyle = "cyan";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(xOffset - 2, 0, sampleWidth + 4, canvasHeight);
+  }
+});
 
-        // Highlight de l'échantillon sélectionné
-        if (sampleIndex === this.highlightedSample) {
-          ctx.strokeStyle = "cyan";
-          ctx.lineWidth = 4;
-          ctx.strokeRect(xOffset - 2, 0, sampleWidth + 4, canvasHeight);
-        }
-
-        ctx.font = "14px Arial";
-        ctx.fillStyle = "#FFD700";
-        ctx.fillText(`Sample ${sampleIndex + 1}`, xOffset, canvasHeight - 10);
-      });
     },
-    drawLadder(ctx, canvasHeight, totalScaleSteps, scaleStep) {
+    
+    drawLadder(ctx, canvasHeight) {
+      const scaleStep = 1000;
+      const totalSteps = Math.floor((this.maxSize - this.minSize) / scaleStep);
       ctx.fillStyle = "#FFD700";
-      ctx.font = "16px Arial"; // Texte plus lisible
-      ctx.textAlign = "right";
+      ctx.font = "14px Arial";
 
-      for (let i = 0; i <= totalScaleSteps; i++) {
+      for (let i = 0; i <= totalSteps; i++) {
         const size = this.minSize + i * scaleStep;
         const yPosition =
           canvasHeight - ((size - this.minSize) / (this.maxSize - this.minSize)) * canvasHeight;
 
-        // Barre de l'échelle
         ctx.fillRect(this.ladderSpacing / 2 - 10, yPosition - 1, 20, 2);
-
-        // Texte
-        ctx.fillStyle = "#fff";
         ctx.fillText(`${size} bp`, this.ladderSpacing - 10, yPosition + 4);
-        ctx.fillStyle = "#FFD700";
       }
     },
     drawControlTracks(ctx, canvasHeight) {
       const controlTracks = {
-        normal: [700, 900, 1200],
-        "-3.7": [600, 800, 1000],
-        other: [500, 700, 1100], // Placeholder
-      };
+  "normal": [8300, 10300, 9500],
+  "--SEA": [8300, 10300, 9500, 5000],
+  "-α3.7": [8300, 10300, 9500, 4600],
+  "-α4.2": [8300, 10300, 9500, 4100],
+  "--THAI": [8300, 10300, 9500, 6100],
+  "--FIL": [8300, 10300, 9500, 7800],
+  "-α27.6": [8300, 10300, 9500, 6300],
+  "ααanti3.7": [8300, 10300, 9500, 12000],
+  "ααanti4.2": [8300, 10300, 9500, 12500],
+  "βSEA-HPFH": [8300, 10300, 9500, 6600],
+  "βGγ+(Aγδβ)0": [8300, 10300, 9500, 7400],
+};
+
 
       const profile = controlTracks[this.selectedProfile];
       if (!profile) return;
 
-      const controlWidth = 50; // Largeur fixe des pistes témoins
-      const xOffset = this.ladderSpacing - controlWidth - 10;
+      const sampleWidth =
+        (this.canvasWidth -
+          this.ladderSpacing -
+          this.sampleSpacing * (this.samples.length + 2)) /
+        (this.samples.length + 1);
+      const xOffset = this.ladderSpacing + this.sampleSpacing;
 
       ctx.fillStyle = "#FFD700";
       profile.forEach((size) => {
+        if (size < this.minSize || size > this.maxSize) return;
+
         const yPosition =
           canvasHeight -
           ((size - this.minSize) / (this.maxSize - this.minSize)) * canvasHeight;
 
-        // Bande témoin
-        ctx.fillRect(xOffset, yPosition - 1, controlWidth, 2);
+        ctx.fillRect(xOffset, yPosition - 1, sampleWidth, 2);
       });
 
-      // Légende des témoins
-      ctx.font = "14px Arial";
+      ctx.font = "20px Arial"; // Police plus grande
       ctx.fillStyle = "#FFD700";
       ctx.textAlign = "center";
-      ctx.fillText(this.selectedProfile, xOffset + controlWidth / 2, canvasHeight - 10);
+      ctx.fillText("Témoin", xOffset + sampleWidth / 2, canvasHeight - 10);
     },
   },
 };

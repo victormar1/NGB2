@@ -109,12 +109,14 @@
       };
     },
     computed: {
-      computedGelSamples() {
-        return Object.values(this.barcodes).map(
-          (b) => "size\n" + (b.lengthData || []).join("\n")
-        );
-      },
-    },
+  computedGelSamples() {
+    return Object.entries(this.barcodes).map(([barcode, b]) => ({
+      name: barcode, // Nom du sample (identique au nom du dossier)
+      data: `size\n${(b.lengthData || []).join("\n")}`, // Données formatées pour le gel
+    }));
+  },
+},
+
     methods: {
       onFileChange(event) {
         const file = event.target.files[0];
